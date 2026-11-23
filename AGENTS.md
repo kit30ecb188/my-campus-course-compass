@@ -28,3 +28,9 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- Signed-in pages live under `src/routes/_authenticated/_app/`; that layout redirects to `/onboarding` until the profile is complete, so every app page can rely on a full profile.
+- Profile and course validation rules live in `src/lib/profile.ts` (zod) and are covered by `src/test/profile-rules.test.ts`; change rules there, not in forms.
+- Browser data reads use `queryOptions` in `src/lib/queries.ts` with the browser client (RLS scopes rows to the user); AI calls go through `src/lib/tutor.functions.ts` behind `requireSupabaseAuth`.
+- Guided-tour targets are `data-tour="..."` attributes; keep them when restyling header or dashboard elements.
