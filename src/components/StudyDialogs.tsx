@@ -14,10 +14,20 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
-type Topic = { title: string; marks?: string };
+type Topic = { title: string; marks?: string; subtopics?: string[] };
 
+/** Every topic in the course, labelled with its unit (for Videos). */
 function topicsOf(course: Course): Topic[] {
-  return course.units.map((u) => (u.marks ? { title: u.title, marks: u.marks } : { title: u.title }));
+  return course.units.flatMap((u, i) => u.topics.map((t) => ({ title: t.title, marks: `Unit ${i + 1} · ${u.title}` })));
+}
+
+/** Each unit with its syllabus topics (for Notes), so notes cover exactly what the syllabus lists. */
+function unitsOf(course: Course): Topic[] {
+  return course.units.map((u, i) => ({
+    title: u.title,
+    marks: [`Unit ${i + 1}`, `${u.topics.length} topics`, u.marks].filter(Boolean).join(" · "),
+    subtopics: u.topics.map((t) => t.title),
+  }));
 }
 
 function TopicOption({ label, sub, selected, onClick, multi }: { label: string; sub?: string | undefined; selected: boolean; onClick: () => void; multi?: boolean }) {
@@ -119,7 +129,7 @@ export function VideosDialog({ course, open, onOpenChange }: { course: Course; o
 
         {!videos ? (
           <div className="grid gap-2">
-            {topics.length === 0 && <p className="text-sm text-muted-foreground">This course has no units yet — type a topic below.</p>}
+            {topics.length === 0 && <p className="text-sm text-muted-foreground">This course has no topics yet — type one below.</p>}
             <div role="radiogroup" aria-label="Topics" className="grid gap-2">
               {topics.map((t, i) => (
                 <TopicOption key={`${t.title}-${i}`} label={t.title} sub={t.marks} selected={topic === t.title} onClick={() => setTopic(t.title)} />
@@ -187,7 +197,7 @@ export function NotesDialog({ course, open, onOpenChange }: { course: Course; op
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ blob: Blob; name: string; notes: UnitNotes[] } | null>(null);
 
-  const topics = [...topicsOf(course), ...extra];
+  const topics = [...unitsOf(course), ...extra];
   const busy = progress !== null;
 
   function toggle(title: string) {
@@ -209,9 +219,14 @@ export function NotesDialog({ course, open, onOpenChange }: { course: Course; op
     try {
       const results = await Promise.all(
         picked.map(async (title) => {
-          const marks = topics.find((t) => t.title === title)?.marks;
+          const picked = topics.find((t) => t.title === title);
           const res = await makeNotes({
-            data: { courseTitle: course.title, courseCode: course.code, topic: title, ...(marks ? { marks } : {}) },
+            data: {
+              courseTitle: course.title,
+              courseCode: course.code,
+              topic: title,
+              ...(picked?.subtopics?.length ? { subtopics: picked.subtopics } : {}),
+            },
           });
           setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
           if (!res.notes) throw new Error(res.error ?? "failed");

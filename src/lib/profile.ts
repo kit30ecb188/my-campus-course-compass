@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { MAX_TITLE_LENGTH, MAX_TOPICS_PER_UNIT, MAX_UNITS, type Unit } from "@/lib/syllabus";
+
+export { MAX_UNITS };
+export type { Unit };
 
 export const DEPARTMENTS = [
   "CSE",
@@ -20,6 +24,7 @@ export const DEPARTMENTS = [
 export const LANGUAGES = [
   "English",
   "Tamil",
+  "Tanglish",
   "Hindi",
   "Telugu",
   "Kannada",
@@ -64,6 +69,8 @@ export const profileSchema = z
       .max(MAX_LANGUAGES, `Pick only 1 or 2 languages`),
     department: z.enum(DEPARTMENTS, { errorMap: () => ({ message: "Choose your department" }) }),
     college: text("college", 120),
+    university: text("university", 120),
+    regulation: text("regulation", 40),
     city: text("city"),
     state: z.enum(STATES, { errorMap: () => ({ message: "Choose your state" }) }),
   })
@@ -83,13 +90,13 @@ export type Profile = {
   languages: string[];
   department: string | null;
   college: string | null;
+  university: string | null;
+  regulation: string | null;
   city: string | null;
   state: string | null;
   onboarded: boolean;
   tour_completed: boolean;
 };
-
-export type Unit = { title: string; marks?: string; revised: boolean };
 
 export type Course = {
   id: string;
@@ -102,9 +109,13 @@ export type Course = {
   units: Unit[];
 };
 
-/** How many units/topics one course can hold, and how long each line may be. */
-export const MAX_UNITS = 40;
-export const MAX_UNIT_LENGTH = 150;
+const unitInput = z.object({
+  title: z.string().trim().min(1, "Give every unit a name").max(MAX_TITLE_LENGTH, `Keep unit names under ${MAX_TITLE_LENGTH} characters`),
+  marks: z.string().trim().max(40),
+  topics: z
+    .array(z.object({ title: z.string().trim().min(1).max(MAX_TITLE_LENGTH, `Keep each topic under ${MAX_TITLE_LENGTH} characters`) }))
+    .max(MAX_TOPICS_PER_UNIT, `A unit can have up to ${MAX_TOPICS_PER_UNIT} topics`),
+});
 
 export const courseSchema = z.object({
   code: z.string().trim().min(2, "Enter the course code").max(20),
@@ -115,42 +126,14 @@ export const courseSchema = z.object({
   semester: z.number().int().min(1).max(8),
   regulation: z.string().trim().max(40).optional(),
   university: z.string().trim().max(120).optional(),
-  units: z
-    .array(z.string().trim().min(1).max(MAX_UNIT_LENGTH, `Keep each unit under ${MAX_UNIT_LENGTH} characters`))
-    .max(MAX_UNITS, `Add up to ${MAX_UNITS} units or topics`),
+  units: z.array(unitInput).max(MAX_UNITS, `Add up to ${MAX_UNITS} units`),
 });
 
 export type CourseInput = z.infer<typeof courseSchema>;
 
-/** Turns "Semiconductor Physics | 20 Marks" lines into units. */
-export function parseUnits(lines: string): string[] {
-  return lines
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-}
-
-export function toUnit(line: string): Unit {
-  const [title, marks] = line.split("|").map((p) => p.trim());
-  return marks ? { title: title ?? line, marks, revised: false } : { title: title ?? line, revised: false };
-}
-
-/** Turns saved units back into editable "Title | Marks" lines. */
-export function unitsToText(units: readonly Unit[]): string {
-  return units.map((u) => (u.marks ? `${u.title} | ${u.marks}` : u.title)).join("\n");
-}
-
 const sameText = (a: string, b: string) =>
   a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
 const sameCode = (a: string, b: string) => a.replace(/\s+/g, "").toUpperCase() === b.replace(/\s+/g, "").toUpperCase();
-
-/** Edited unit lines keep their "revised" tick when the unit title is unchanged. */
-export function mergeUnits(lines: readonly string[], previous: readonly Unit[]): Unit[] {
-  return lines.map((line) => {
-    const unit = toUnit(line);
-    return previous.some((p) => p.revised && sameText(p.title, unit.title)) ? { ...unit, revised: true } : unit;
-  });
-}
 
 /** A course counts as already added when its code or its name matches one the student has. */
 export function findDuplicateCourse<T extends Pick<Course, "id" | "code" | "title">>(
@@ -170,24 +153,25 @@ export function showCoursesSection(courses: readonly unknown[]): boolean {
   return courses.length > 0;
 }
 
-export function revisionProgress(units: readonly Unit[]): number {
-  if (units.length === 0) return 0;
-  return Math.round((units.filter((u) => u.revised).length / units.length) * 100);
-}
-
 const DEPT_SUGGESTIONS: Record<string, string[]> = {
-  CSE: ["Explain deadlock for 16 marks", "Most repeated DBMS Unit 2 questions", "TCP vs UDP in 2 marks"],
-  IT: ["Explain normalization for 16 marks", "Most repeated OS questions", "HTTP vs HTTPS in 2 marks"],
-  ECE: ["Explain Zener breakdown for 16 marks", "Most repeated Unit 2 questions", "MOSFET vs JFET in 2 marks"],
-  EEE: ["Explain transformer working for 16 marks", "Most repeated machines questions", "AC vs DC motor in 2 marks"],
-  MECH: ["Explain Otto cycle for 16 marks", "Most repeated thermodynamics questions", "Stress vs strain in 2 marks"],
-  CIVIL: ["Explain soil compaction for 16 marks", "Most repeated surveying questions", "RCC vs PCC in 2 marks"],
+  CSE: ["Explain deadlock", "TCP vs UDP"],
+  IT: ["Explain normalization", "HTTP vs HTTPS"],
+  ECE: ["Explain Zener breakdown", "MOSFET vs JFET"],
+  EEE: ["Explain transformer working", "AC vs DC motor"],
+  MECH: ["Explain Otto cycle", "Stress vs strain"],
+  CIVIL: ["Explain soil compaction", "RCC vs PCC"],
 };
 
-export function suggestionsFor(department: string | null | undefined): string[] {
-  return DEPT_SUGGESTIONS[department ?? ""] ?? [
-    "Explain this topic for 16 marks",
-    "Most repeated Unit 1 questions",
-    "Make a 2-mark revision sheet",
-  ];
+/**
+ * "Try asking" ideas: topics from the student's own syllabus they haven't revised yet,
+ * topped up with department examples. Never suggests past-paper claims.
+ */
+export function suggestionsFor(department: string | null | undefined, courses: readonly Pick<Course, "units">[] = []): string[] {
+  const fromSyllabus = courses
+    .flatMap((c) => c.units.flatMap((u) => u.topics))
+    .filter((t) => !t.revised)
+    .slice(0, 3)
+    .map((t) => `Explain ${t.title}`);
+  const extra = DEPT_SUGGESTIONS[department ?? ""] ?? ["Explain this topic simply", "Make a revision sheet"];
+  return [...fromSyllabus, ...extra].slice(0, 3);
 }

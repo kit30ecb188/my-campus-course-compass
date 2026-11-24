@@ -1,20 +1,21 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle, ClipboardPaste, Plus, Trash2, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { coursesQuery } from "@/lib/queries";
+import { DEPARTMENTS, courseSchema, findDuplicateCourse, type Course, type Profile } from "@/lib/profile";
 import {
-  DEPARTMENTS,
   MAX_UNITS,
-  courseSchema,
-  findDuplicateCourse,
-  mergeUnits,
-  parseUnits,
-  unitsToText,
-  type Course,
-  type Profile,
-} from "@/lib/profile";
+  draftsFromParsed,
+  draftsFromUnits,
+  emptyDraft,
+  parseSyllabus,
+  toSavePayload,
+  topicLines,
+  type DraftUnit,
+} from "@/lib/syllabus";
 import { Field, NativeSelect } from "@/components/Field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,6 @@ type FormState = {
   semester: number;
   regulation: string;
   university: string;
-  units: string;
 };
 
 export function AddCourseDialog({ profile }: { profile: Profile }) {
@@ -40,53 +40,45 @@ export function AddCourseDialog({ profile }: { profile: Profile }) {
           <Plus /> Add course
         </Button>
       </DialogTrigger>
-      <CourseDialogContent title="Add a course" description="Add a subject from your syllabus to track its units.">
-        <CourseForm
-          profileId={profile.id}
-          initial={{
-            code: "",
-            title: "",
-            department: "",
-            semester: profile.semester ?? 1,
-            regulation: "Regulation 2021",
-            university: profile.college ?? "",
-            units: "",
-          }}
-          onDone={() => setOpen(false)}
-        />
+      <CourseDialogContent title="Add a course" description="Paste your syllabus or type the units and topics yourself.">
+        {open && (
+          <CourseForm
+            initial={{
+              code: "",
+              title: "",
+              department: "",
+              semester: profile.semester ?? 1,
+              regulation: profile.regulation ?? "",
+              university: profile.university ?? profile.college ?? "",
+            }}
+            initialUnits={[emptyDraft()]}
+            onDone={() => setOpen(false)}
+          />
+        )}
       </CourseDialogContent>
     </Dialog>
   );
 }
 
-export function EditCourseDialog({
-  course,
-  profileId,
-  open,
-  onOpenChange,
-}: {
-  course: Course;
-  profileId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
+export function EditCourseDialog({ course, open, onOpenChange }: { course: Course; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <CourseDialogContent title="Edit course" description="Change the details or units of this course.">
-        <CourseForm
-          profileId={profileId}
-          editing={course}
-          initial={{
-            code: course.code,
-            title: course.title,
-            department: course.department,
-            semester: course.semester ?? 1,
-            regulation: course.regulation ?? "",
-            university: course.university ?? "",
-            units: unitsToText(course.units),
-          }}
-          onDone={() => onOpenChange(false)}
-        />
+      <CourseDialogContent title="Edit course" description="Change the details, units or topics. Ticks stay on topics you don't rename.">
+        {open && (
+          <CourseForm
+            editing={course}
+            initial={{
+              code: course.code,
+              title: course.title,
+              department: course.department,
+              semester: course.semester ?? 1,
+              regulation: course.regulation ?? "",
+              university: course.university ?? "",
+            }}
+            initialUnits={course.units.length ? draftsFromUnits(course.units) : [emptyDraft()]}
+            onDone={() => onOpenChange(false)}
+          />
+        )}
       </CourseDialogContent>
     </Dialog>
   );
@@ -94,7 +86,7 @@ export function EditCourseDialog({
 
 function CourseDialogContent({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+    <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader>
         <DialogTitle className="font-display text-2xl">{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
@@ -105,13 +97,13 @@ function CourseDialogContent({ title, description, children }: { title: string; 
 }
 
 function CourseForm({
-  profileId,
   initial,
+  initialUnits,
   editing,
   onDone,
 }: {
-  profileId: string;
   initial: FormState;
+  initialUnits: DraftUnit[];
   editing?: Course;
   onDone: () => void;
 }) {
@@ -120,38 +112,45 @@ function CourseForm({
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<FormState>(initial);
+  const [units, setUnits] = useState<DraftUnit[]>(initialUnits);
+  const [paste, setPaste] = useState("");
+  const [pasteOpen, setPasteOpen] = useState(!editing);
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const setUnit = (key: string, patch: Partial<DraftUnit>) => setUnits((us) => us.map((u) => (u.key === key ? { ...u, ...patch } : u)));
 
-  const unitCount = parseUnits(form.units).length;
   const duplicate = findDuplicateCourse(courses, { code: form.code, title: form.title }, editing?.id);
+  const topicTotal = units.reduce((n, u) => n + topicLines(u.topicsText).length, 0);
+
+  function readPaste() {
+    const parsed = parseSyllabus(paste);
+    if (parsed.length === 0) return void toast.error("Couldn't find any units or topics in that text.");
+    const hasTyped = units.some((u) => u.title.trim() || u.topicsText.trim());
+    if (hasTyped && !window.confirm("Replace the units below with the ones from your pasted syllabus?")) return;
+    setUnits(draftsFromParsed(parsed));
+    setPasteOpen(false);
+    toast.success(`Found ${parsed.length} ${parsed.length === 1 ? "unit" : "units"} and ${parsed.reduce((n, u) => n + u.topics.length, 0)} topics. Check them below.`);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const lines = parseUnits(form.units);
-    const parsed = courseSchema.safeParse({ ...form, units: lines });
+    const payload = toSavePayload(units, editing?.units ?? []);
+    const parsed = courseSchema.safeParse({ ...form, units: payload });
     if (!parsed.success) {
       const errs: Record<string, string> = {};
       for (const i of parsed.error.issues) errs[String(i.path[0])] ??= i.message;
       setErrors(errs);
       return;
     }
-    if (duplicate) {
-      toast.warning(`You already added this course: ${duplicate.code} – ${duplicate.title}`);
-      return;
-    }
+    if (duplicate) return void toast.warning(`You already added this course: ${duplicate.code} – ${duplicate.title}`);
     setErrors({});
     setBusy(true);
-    const { units, regulation, university, ...rest } = parsed.data;
-    const row = {
-      ...rest,
-      regulation: regulation || null,
-      university: university || null,
-      code: rest.code.toUpperCase(),
-      units: mergeUnits(units, editing?.units ?? []),
-    };
-    const { error } = editing
-      ? await supabase.from("courses").update(row).eq("id", editing.id)
-      : await supabase.from("courses").insert({ ...row, user_id: profileId });
+    const { code, title, department, semester, regulation, university } = parsed.data;
+    const course = { code, title, department, semester, regulation, university };
+    const { error } = await supabase.rpc("save_course", {
+      p_course_id: (editing?.id ?? null) as unknown as string,
+      p_course: course as unknown as Json,
+      p_units: payload as unknown as Json,
+    });
     setBusy(false);
     if (error) return void toast.error(editing ? "Couldn't save the course. Please try again." : "Couldn't add the course. Please try again.");
     await queryClient.invalidateQueries({ queryKey: ["courses"] });
@@ -171,7 +170,7 @@ function CourseForm({
           </NativeSelect>
         </Field>
       </div>
-      <div className="grid grid-cols-[1fr_2fr] gap-3">
+      <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">
         <Field label="Course code" htmlFor="c-code" error={errors["code"]}>
           <Input id="c-code" value={form.code} onChange={(e) => set("code", e.target.value)} placeholder="CS3401" />
         </Field>
@@ -199,26 +198,90 @@ function CourseForm({
           </NativeSelect>
         </Field>
         <Field label="Regulation" htmlFor="c-reg">
-          <Input id="c-reg" value={form.regulation} onChange={(e) => set("regulation", e.target.value)} />
+          <Input id="c-reg" value={form.regulation} onChange={(e) => set("regulation", e.target.value)} placeholder="R2021" />
         </Field>
       </div>
-      <Field label="University / college" htmlFor="c-uni">
+      <Field label="University" htmlFor="c-uni">
         <Input id="c-uni" value={form.university} onChange={(e) => set("university", e.target.value)} />
       </Field>
-      <Field
-        label={`Units & topics (one per line) · ${unitCount}/${MAX_UNITS}`}
-        htmlFor="c-units"
-        error={errors["units"]}
-        hint='Optional marks after a bar, e.g. "Sorting | 20 Marks"'
-      >
-        <Textarea
-          id="c-units"
-          rows={8}
-          value={form.units}
-          onChange={(e) => set("units", e.target.value)}
-          placeholder={"Introduction\nBrute force & divide and conquer\nDynamic programming"}
-        />
-      </Field>
+
+      <div className="rounded-xl border border-border bg-muted/40 p-4">
+        <button type="button" onClick={() => setPasteOpen((o) => !o)} className="flex w-full items-center gap-2 text-left text-sm font-semibold">
+          <ClipboardPaste className="size-4 text-primary" /> Paste syllabus text {pasteOpen ? "" : "(optional)"}
+        </button>
+        {pasteOpen && (
+          <div className="mt-3 grid gap-2">
+            <Textarea
+              rows={6}
+              value={paste}
+              onChange={(e) => setPaste(e.target.value)}
+              aria-label="Paste syllabus text"
+              placeholder={"UNIT I INTRODUCTION 9\nNotion of an Algorithm – Fundamentals of Algorithmic Problem Solving – Important Problem Types\nUNIT II BRUTE FORCE AND DIVIDE AND CONQUER 9\nSelection sort – Bubble sort – Merge sort – Quick sort"}
+            />
+            <p className="text-xs text-muted-foreground">
+              Copy the units straight from your syllabus. Lines starting with "UNIT" become units; the text under them becomes topics.
+            </p>
+            <Button type="button" variant="soft" onClick={readPaste} disabled={!paste.trim()} className="justify-self-start">
+              <Wand2 /> Read units & topics
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">
+            Units & topics · {units.length}/{MAX_UNITS} units · {topicTotal} topics
+          </p>
+        </div>
+        {errors["units"] && <p className="text-xs font-medium text-destructive">{errors["units"]}</p>}
+        {units.map((u, i) => (
+          <div key={u.key} className="grid gap-2 rounded-xl border border-border bg-card p-3">
+            <div className="flex items-end gap-2">
+              <div className="grid flex-1 gap-2 sm:grid-cols-[2fr_1fr]">
+                <Input
+                  value={u.title}
+                  onChange={(e) => setUnit(u.key, { title: e.target.value })}
+                  placeholder={`Unit ${i + 1} name, e.g. Introduction`}
+                  aria-label={`Unit ${i + 1} name`}
+                />
+                <Input
+                  value={u.marks}
+                  onChange={(e) => setUnit(u.key, { marks: e.target.value })}
+                  placeholder="Marks (optional)"
+                  aria-label={`Unit ${i + 1} marks`}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Remove unit ${i + 1}`}
+                onClick={() => setUnits((us) => (us.length > 1 ? us.filter((x) => x.key !== u.key) : [emptyDraft()]))}
+              >
+                <Trash2 />
+              </Button>
+            </div>
+            <Textarea
+              rows={3}
+              value={u.topicsText}
+              onChange={(e) => setUnit(u.key, { topicsText: e.target.value })}
+              placeholder={"Topics, one per line\nAsymptotic notations\nRecurrence relations"}
+              aria-label={`Unit ${i + 1} topics`}
+            />
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setUnits((us) => [...us, emptyDraft()])}
+          disabled={units.length >= MAX_UNITS}
+          className="justify-self-start"
+        >
+          <Plus /> Add unit
+        </Button>
+      </div>
+
       <Button type="submit" size="xl" disabled={busy || Boolean(duplicate)}>
         {busy ? (editing ? "Saving…" : "Adding…") : editing ? "Save changes" : "Add course"}
       </Button>

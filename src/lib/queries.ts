@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Course, Profile, Unit } from "@/lib/profile";
+import type { Course, Profile } from "@/lib/profile";
+import { COURSE_SELECT, mapCourses } from "@/lib/course-data";
 
 export const profileQuery = queryOptions({
   queryKey: ["profile"],
@@ -25,11 +26,81 @@ export const profileQuery = queryOptions({
 export const coursesQuery = queryOptions({
   queryKey: ["courses"],
   queryFn: async (): Promise<Course[]> => {
-    const { data, error } = await supabase
-      .from("courses")
-      .select("id, code, title, department, semester, regulation, university, units")
-      .order("created_at", { ascending: true });
+    const { data, error } = await supabase.from("courses").select(COURSE_SELECT).order("created_at", { ascending: true });
     if (error) throw error;
-    return (data ?? []).map((c) => ({ ...c, units: (c.units as unknown as Unit[]) ?? [] }));
+    return mapCourses(data ?? []);
+  },
+});
+
+export type SavedAnswer = {
+  id: string;
+  course_id: string | null;
+  unit_id: string | null;
+  topic_id: string | null;
+  question: string;
+  answer: string;
+  marks: number | null;
+  language: string | null;
+  created_at: string;
+};
+
+export const savedAnswersQuery = queryOptions({
+  queryKey: ["saved_answers"],
+  queryFn: async (): Promise<SavedAnswer[]> => {
+    const { data, error } = await supabase
+      .from("saved_answers")
+      .select("id, course_id, unit_id, topic_id, question, answer, marks, language, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export type BankQuestion = {
+  id: string;
+  course_id: string;
+  unit_id: string | null;
+  topic_id: string | null;
+  text: string;
+  marks: number;
+  session: string | null;
+  college: string | null;
+  created_at: string;
+};
+
+export const questionsQuery = queryOptions({
+  queryKey: ["questions"],
+  queryFn: async (): Promise<BankQuestion[]> => {
+    const { data, error } = await supabase
+      .from("questions")
+      .select("id, course_id, unit_id, topic_id, text, marks, session, college, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  },
+});
+
+export type VivaSessionRow = {
+  id: string;
+  course_id: string;
+  unit_id: string | null;
+  question_count: number;
+  status: string;
+  score: number | null;
+  summary: unknown;
+  created_at: string;
+};
+
+export const vivaSessionsQuery = queryOptions({
+  queryKey: ["viva_sessions"],
+  queryFn: async (): Promise<VivaSessionRow[]> => {
+    const { data, error } = await supabase
+      .from("viva_sessions")
+      .select("id, course_id, unit_id, question_count, status, score, summary, created_at")
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    return data ?? [];
   },
 });

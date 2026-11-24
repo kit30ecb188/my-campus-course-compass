@@ -14,3 +14,11 @@
 - [x] AI Tutor only in the dashboard search box (removed tutor page, nav tab and other Ask AI buttons)
 - [x] Edit saved courses; warn when adding a course that's already added
 - [x] Top panel no longer pinned over the page on phones
+- [ ] Gap-analysis checklist: audit + fix in priority order
+  - [ ] Sign-up also asks university and regulation
+  - [ ] Units → topics, paste-syllabus parsing, topic ticks + confidence, course page
+  - [ ] Unit/course/semester readiness on dashboard
+  - [ ] AI tutor: course/unit/topic context, 2/13/16 marks, Tamil/Tanglish, off-syllabus warning, follow-ups, save to notes, mark revised
+  - [ ] Question Bank stored per student, linked to course/unit/topic, real filters
+  - [ ] Mock Viva (5/10 questions), scoring /10, weak topics, voice answers
+  - [ ] Mobile check at 375px; final report

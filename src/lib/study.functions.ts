@@ -60,6 +60,7 @@ const topicInput = z.object({
   courseCode: z.string().trim().max(20).optional(),
   topic: z.string().trim().min(1).max(160),
   marks: z.string().trim().max(40).optional(),
+  subtopics: z.array(z.string().trim().min(1).max(200)).max(80).optional(),
 });
 
 async function studentLine(context: { supabase: SupabaseClient<Database>; userId: string }) {
@@ -113,7 +114,7 @@ export const makeUnitNotes = createServerFn({ method: "POST" })
           "Describe diagrams in words where a diagram would be drawn in the exam.",
           "Give 6-8 two-mark questions with short model answers, and 4-6 tips for writing 13/16-mark answers.",
         ].join("\n"),
-        `Course: ${data.courseTitle}${data.courseCode ? ` (${data.courseCode})` : ""}\nUnit / topic: ${data.topic}${data.marks ? `\nWeightage: ${data.marks}` : ""}\nMake detailed notes for this unit.`,
+        `Course: ${data.courseTitle}${data.courseCode ? ` (${data.courseCode})` : ""}\nUnit / topic: ${data.topic}${data.marks ? `\nWeightage: ${data.marks}` : ""}${data.subtopics?.length ? `\nTopics listed in the student's syllabus for this unit (cover each of them, and nothing unrelated):\n- ${data.subtopics.join("\n- ")}` : ""}\nMake detailed notes for this unit.`,
         "unit_notes",
         NOTES_JSON_SCHEMA,
       );

@@ -64,9 +64,11 @@ export type Database = {
           languages: string[]
           nickname: string | null
           onboarded: boolean
+          regulation: string | null
           semester: number | null
           state: string | null
           tour_completed: boolean
+          university: string | null
           updated_at: string
           year: number | null
         }
@@ -80,9 +82,11 @@ export type Database = {
           languages?: string[]
           nickname?: string | null
           onboarded?: boolean
+          regulation?: string | null
           semester?: number | null
           state?: string | null
           tour_completed?: boolean
+          university?: string | null
           updated_at?: string
           year?: number | null
         }
@@ -96,20 +100,377 @@ export type Database = {
           languages?: string[]
           nickname?: string | null
           onboarded?: boolean
+          regulation?: string | null
           semester?: number | null
           state?: string | null
           tour_completed?: boolean
+          university?: string | null
           updated_at?: string
           year?: number | null
         }
         Relationships: []
+      }
+      questions: {
+        Row: {
+          college: string | null
+          course_id: string
+          created_at: string
+          id: string
+          marks: number
+          session: string | null
+          text: string
+          topic_id: string | null
+          unit_id: string | null
+          user_id: string
+        }
+        Insert: {
+          college?: string | null
+          course_id: string
+          created_at?: string
+          id?: string
+          marks: number
+          session?: string | null
+          text: string
+          topic_id?: string | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          college?: string | null
+          course_id?: string
+          created_at?: string
+          id?: string
+          marks?: number
+          session?: string | null
+          text?: string
+          topic_id?: string | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_answers: {
+        Row: {
+          answer: string
+          course_id: string | null
+          created_at: string
+          id: string
+          language: string | null
+          marks: number | null
+          question: string
+          topic_id: string | null
+          unit_id: string | null
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          marks?: number | null
+          question: string
+          topic_id?: string | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          answer?: string
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          language?: string | null
+          marks?: number | null
+          question?: string
+          topic_id?: string | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_answers_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_answers_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_answers_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topic_progress: {
+        Row: {
+          confidence: number
+          revised: boolean
+          topic_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          confidence?: number
+          revised?: boolean
+          topic_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          confidence?: number
+          revised?: boolean
+          topic_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topic_progress_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      topics: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          position: number
+          title: string
+          unit_id: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          position?: number
+          title: string
+          unit_id: string
+          user_id?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          title?: string
+          unit_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "topics_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "topics_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      units: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          marks: string | null
+          position: number
+          title: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          marks?: string | null
+          position?: number
+          title: string
+          user_id?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          marks?: string | null
+          position?: number
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viva_answers: {
+        Row: {
+          answer: string | null
+          created_at: string
+          feedback: string | null
+          id: string
+          position: number
+          question: string
+          score: number | null
+          session_id: string
+          topic_id: string | null
+          topic_title: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          position: number
+          question: string
+          score?: number | null
+          session_id: string
+          topic_id?: string | null
+          topic_title: string
+          user_id?: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          position?: number
+          question?: string
+          score?: number | null
+          session_id?: string
+          topic_id?: string | null
+          topic_title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viva_answers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "viva_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viva_answers_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viva_sessions: {
+        Row: {
+          completed_at: string | null
+          course_id: string
+          created_at: string
+          id: string
+          question_count: number
+          score: number | null
+          status: string
+          summary: Json | null
+          unit_id: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          course_id: string
+          created_at?: string
+          id?: string
+          question_count: number
+          score?: number | null
+          status?: string
+          summary?: Json | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          completed_at?: string | null
+          course_id?: string
+          created_at?: string
+          id?: string
+          question_count?: number
+          score?: number | null
+          status?: string
+          summary?: Json | null
+          unit_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "viva_sessions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "viva_sessions_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      owns_course: { Args: { _course: string }; Returns: boolean }
+      owns_topic: { Args: { _topic: string }; Returns: boolean }
+      owns_unit: { Args: { _unit: string }; Returns: boolean }
+      owns_viva: { Args: { _session: string }; Returns: boolean }
+      save_course: {
+        Args: { p_course: Json; p_course_id: string; p_units: Json }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
