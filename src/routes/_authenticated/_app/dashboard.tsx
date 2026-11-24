@@ -6,6 +6,10 @@ import { BookOpenCheck, ChevronsUpDown, Library, MessagesSquare, Search, Sparkle
 import { supabase } from "@/integrations/supabase/client";
 import { coursesQuery, profileQuery } from "@/lib/queries";
 import { showCoursesSection, suggestionsFor } from "@/lib/profile";
+import { semesterReadiness } from "@/lib/syllabus";
+import { MARK_MODES, type MarkMode } from "@/lib/tutor-context";
+import { NativeSelect } from "@/components/Field";
+import { Progress } from "@/components/ui/progress";
 import { AddCourseDialog } from "@/components/AddCourseDialog";
 import { TutorAnswers } from "@/components/TutorAnswers";
 import { useTutorChat } from "@/hooks/use-tutor-chat";
@@ -53,11 +57,23 @@ function Dashboard() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [welcomeOpen, setWelcomeOpen] = useState(Boolean(tour) || !profile?.tour_completed);
   const [tourOpen, setTourOpen] = useState(false);
+  const [marks, setMarks] = useState<MarkMode>(2);
+  const [pickCourse, setPickCourse] = useState("");
+  const [pickUnit, setPickUnit] = useState("");
+  const [pickTopic, setPickTopic] = useState("");
 
   const p = profile!;
   const [language] = useAnswerLanguage(p.languages, p.id);
   const chat = useTutorChat(language);
-  const suggestions = suggestionsFor(p.department);
+  const suggestions = suggestionsFor(p.department, courses);
+  const readiness = semesterReadiness(courses, p.semester);
+  const pickedCourse = courses.find((c) => c.id === pickCourse);
+  const pickedUnit = pickedCourse?.units.find((u) => u.id === pickUnit);
+  const pick = {
+    ...(pickCourse ? { courseId: pickCourse } : {}),
+    ...(pickUnit ? { unitId: pickUnit } : {}),
+    ...(pickTopic ? { topicId: pickTopic } : {}),
+  };
   const semesters = useMemo(
     () => [...new Set(courses.map((c) => c.semester).filter((s): s is number => s != null))].sort(),
     [courses],
@@ -86,9 +102,9 @@ function Dashboard() {
     }
   }
 
-  function ask(text: string) {
+  function ask(text: string): Promise<boolean> {
     setQ("");
-    void chat.send(text);
+    return chat.send(text, marks, pick);
   }
 
   const allOpen = visible.length > 0 && visible.every((c) => expanded[c.id]);
@@ -110,13 +126,28 @@ function Dashboard() {
         </h1>
       </section>
 
+      {showCoursesSection(courses) && (
+        <section className="surface p-5" aria-label="Semester readiness">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold">
+              {readiness.scope === "semester" ? `Semester ${p.semester} readiness` : "Overall readiness"}
+            </h2>
+            <span className="text-2xl font-extrabold text-primary">{readiness.percent}%</span>
+          </div>
+          <Progress value={readiness.percent} className="mt-2 h-2" aria-label="Semester readiness" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {readiness.revised} of {readiness.total} topics revised across {readiness.courseCount} {readiness.courseCount === 1 ? "course" : "courses"}
+          </p>
+        </section>
+      )}
+
       <section className="surface p-5">
         <div className="flex flex-col gap-3 sm:flex-row">
           <form
             data-tour="search"
             onSubmit={(e) => {
               e.preventDefault();
-              if (q.trim()) ask(q.trim());
+              if (q.trim()) void ask(q.trim());
             }}
             className="flex flex-1 items-center gap-2 rounded-2xl border border-input bg-card py-1.5 pl-4 pr-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring"
           >
@@ -134,10 +165,37 @@ function Dashboard() {
           </form>
           <AddCourseDialog profile={p} />
         </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_1fr_1fr]">
+          <div className="flex items-center gap-1" role="radiogroup" aria-label="Answer length">
+            {MARK_MODES.map((m) => (
+              <Button key={m} type="button" role="radio" aria-checked={marks === m} variant={marks === m ? "chipActive" : "chip"} size="chip" onClick={() => setMarks(m)}>
+                {m} marks
+              </Button>
+            ))}
+          </div>
+          <NativeSelect aria-label="Answer from course" value={pickCourse} onChange={(e) => { setPickCourse(e.target.value); setPickUnit(""); setPickTopic(""); }}>
+            <option value="">Any course (auto-detect)</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} – {c.title}</option>
+            ))}
+          </NativeSelect>
+          <NativeSelect aria-label="Answer from unit" value={pickUnit} disabled={!pickedCourse} onChange={(e) => { setPickUnit(e.target.value); setPickTopic(""); }}>
+            <option value="">Any unit</option>
+            {pickedCourse?.units.map((u, i) => (
+              <option key={u.id} value={u.id}>Unit {i + 1}: {u.title}</option>
+            ))}
+          </NativeSelect>
+          <NativeSelect aria-label="Answer from topic" value={pickTopic} disabled={!pickedUnit} onChange={(e) => setPickTopic(e.target.value)}>
+            <option value="">Any topic</option>
+            {pickedUnit?.topics.map((t) => (
+              <option key={t.id} value={t.id}>{t.title}</option>
+            ))}
+          </NativeSelect>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           Try asking:
           {suggestions.map((s) => (
-            <Button key={s} variant="chip" size="chip" onClick={() => ask(s)}>
+            <Button key={s} variant="chip" size="chip" onClick={() => void ask(s)}>
               {s}
             </Button>
           ))}
@@ -146,7 +204,7 @@ function Dashboard() {
           messages={chat.messages}
           busy={chat.busy}
           language={language}
-          onSend={chat.send}
+          onSend={(t) => chat.send(t, marks, pick)}
           onClear={chat.clear}
         />
         {showCoursesSection(courses) && (
@@ -193,7 +251,6 @@ function Dashboard() {
                 <CourseCard
                   key={c.id}
                   course={c}
-                  profileId={p.id}
                   expanded={Boolean(expanded[c.id])}
                   onToggle={() => setExpanded((e) => ({ ...e, [c.id]: !e[c.id] }))}
                 />

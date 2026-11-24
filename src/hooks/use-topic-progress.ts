@@ -22,9 +22,10 @@ export function useTopicProgress() {
     );
 
     const { data: auth } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("topic_progress")
-      .upsert({ topic_id: topicId, user_id: auth.user?.id, ...next }, { onConflict: "topic_id,user_id" });
+    const userId = auth.user?.id;
+    const { error } = userId
+      ? await supabase.from("topic_progress").upsert({ topic_id: topicId, user_id: userId, ...next }, { onConflict: "topic_id,user_id" })
+      : { error: new Error("signed out") };
     if (error) {
       toast.error("Couldn't save your progress. Please try again.");
       queryClient.setQueryData(coursesQuery.queryKey, previous);
