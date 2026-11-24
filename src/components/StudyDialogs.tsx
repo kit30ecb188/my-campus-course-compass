@@ -72,7 +72,7 @@ function CustomTopic({ onAdd }: { onAdd: (t: string) => void }) {
 
 export function VideosDialog({ course, open, onOpenChange }: { course: Course; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { data: profile } = useSuspenseQuery(profileQuery);
-  const [language] = useAnswerLanguage(profile?.languages ?? []);
+  const [language] = useAnswerLanguage(profile?.languages ?? [], profile?.id);
   const fetchVideos = useServerFn(suggestVideos);
   const [extra, setExtra] = useState<Topic[]>([]);
   const [topic, setTopic] = useState<string | null>(null);

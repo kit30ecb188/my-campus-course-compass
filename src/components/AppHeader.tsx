@@ -23,7 +23,7 @@ export function AppHeader({ profile }: { profile: Profile }) {
   const navigate = useNavigate();
   const { user } = useRouteContext({ from: "/_authenticated" });
   const queryClient = useQueryClient();
-  const [language, setLanguage] = useAnswerLanguage(profile.languages);
+  const [language, setLanguage] = useAnswerLanguage(profile.languages, profile.id);
 
   async function signOut() {
     await queryClient.cancelQueries();

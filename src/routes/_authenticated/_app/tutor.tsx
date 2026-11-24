@@ -35,7 +35,7 @@ function Tutor() {
   const { data: profile } = useSuspenseQuery(profileQuery);
   const { q } = Route.useSearch();
   const ask = useServerFn(askTutor);
-  const [language] = useAnswerLanguage(profile?.languages ?? []);
+  const [language] = useAnswerLanguage(profile?.languages ?? [], profile?.id);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
