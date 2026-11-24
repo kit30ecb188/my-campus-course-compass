@@ -2,27 +2,43 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BookOpenCheck, Check, ChevronDown, FileText, PlayCircle, Sparkles, Trash2 } from "lucide-react";
+import { BookOpenCheck, Check, ChevronDown, FileText, Pencil, PlayCircle, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { revisionProgress, type Course, type Unit } from "@/lib/profile";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { NotesDialog, VideosDialog } from "@/components/StudyDialogs";
+import { EditCourseDialog } from "@/components/AddCourseDialog";
+import { coursesQuery } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
-export function CourseCard({ course, expanded, onToggle }: { course: Course; expanded: boolean; onToggle: () => void }) {
+export function CourseCard({
+  course,
+  profileId,
+  expanded,
+  onToggle,
+}: {
+  course: Course;
+  profileId: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const queryClient = useQueryClient();
-  const [units, setUnits] = useState<Unit[]>(course.units);
+  const units = course.units;
   const progress = revisionProgress(units);
   const [videosOpen, setVideosOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   async function saveUnits(next: Unit[]) {
-    setUnits(next);
+    const previous = queryClient.getQueryData(coursesQuery.queryKey);
+    queryClient.setQueryData(coursesQuery.queryKey, (old) =>
+      old?.map((c) => (c.id === course.id ? { ...c, units: next } : c)),
+    );
     const { error } = await supabase.from("courses").update({ units: next }).eq("id", course.id);
     if (error) {
       toast.error("Couldn't save progress");
-      setUnits(course.units);
+      queryClient.setQueryData(coursesQuery.queryKey, previous);
     } else queryClient.invalidateQueries({ queryKey: ["courses"] });
   }
 
@@ -64,7 +80,11 @@ export function CourseCard({ course, expanded, onToggle }: { course: Course; exp
         <Button variant="soft" size="sm" onClick={() => setNotesOpen(true)}>
           <FileText /> Notes (PDF)
         </Button>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setEditOpen(true)}>
+          <Pencil /> Edit
+        </Button>
       </div>
+      <EditCourseDialog course={course} profileId={profileId} open={editOpen} onOpenChange={setEditOpen} />
       <VideosDialog course={course} open={videosOpen} onOpenChange={setVideosOpen} />
       <NotesDialog course={course} open={notesOpen} onOpenChange={setNotesOpen} />
       {expanded && (
@@ -78,13 +98,6 @@ export function CourseCard({ course, expanded, onToggle }: { course: Course; exp
               <p className="flex-1 font-semibold">
                 {u.title} {u.marks && <span className="text-xs font-normal text-muted-foreground">({u.marks})</span>}
               </p>
-              <Link
-                to="/tutor"
-                search={{ q: `Explain ${u.title} from ${course.title} for my exam` }}
-                className="hidden items-center gap-1 text-xs font-medium text-primary hover:underline sm:inline-flex"
-              >
-                <Sparkles className="size-3.5" /> Ask AI
-              </Link>
               <button
                 onClick={() => saveUnits(units.map((x, j) => (j === i ? { ...x, revised: !x.revised } : x)))}
                 className={cn(

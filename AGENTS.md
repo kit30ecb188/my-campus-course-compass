@@ -32,7 +32,8 @@ use the editor.
 ## Project rules
 - Signed-in pages live under `src/routes/_authenticated/_app/`; that layout redirects to `/onboarding` until the profile is complete, so every app page can rely on a full profile.
 - Profile and course validation rules live in `src/lib/profile.ts` (zod) and are covered by `src/test/profile-rules.test.ts`; change rules there, not in forms.
-- Browser data reads use `queryOptions` in `src/lib/queries.ts` with the browser client (RLS scopes rows to the user); AI calls go through `src/lib/tutor.functions.ts` behind `requireSupabaseAuth`.
+- Browser data reads use `queryOptions` in `src/lib/queries.ts` with the browser client (RLS scopes rows to the user); AI calls go through `src/lib/tutor.functions.ts` behind `requireSupabaseAuth`; the tutor chat is rendered only inside the dashboard search box (`useTutorChat` + `TutorAnswers`), with no separate tutor route.
 - Guided-tour targets are `data-tour="..."` attributes; keep them when restyling header or dashboard elements.
 - The root auth listener clears the whole query cache whenever the signed-in account changes, and the app layout re-fetches any cached profile whose id differs from the session user, so one account's data never shows for another.
 - Notes PDFs are built in the browser with jsPDF (built-in Latin fonts only), so AI notes from `src/lib/study.functions.ts` are plain English text in a fixed JSON shape (`notesSchema` in `src/lib/study.ts`).
+- Add and edit course share one form in `src/components/AddCourseDialog.tsx`; duplicate detection and unit merging live in `src/lib/profile.ts` so both paths behave the same.

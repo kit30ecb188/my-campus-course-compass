@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { coursesQuery, profileQuery } from "@/lib/queries";
 import { showCoursesSection, suggestionsFor } from "@/lib/profile";
 import { AddCourseDialog } from "@/components/AddCourseDialog";
+import { TutorAnswers } from "@/components/TutorAnswers";
+import { useTutorChat } from "@/hooks/use-tutor-chat";
+import { useAnswerLanguage } from "@/hooks/use-answer-language";
 import { CourseCard } from "@/components/CourseCard";
 import { GuidedTour, type TourStep } from "@/components/GuidedTour";
 import { Button } from "@/components/ui/button";
@@ -31,9 +34,8 @@ export const Route = createFileRoute("/_authenticated/_app/dashboard")({
 const TOUR: TourStep[] = [
   { target: "nav-dashboard", title: "Syllabus Dashboard", body: "Your home. All your courses, units and revision progress live here." },
   { target: "nav-qbank", title: "Question Bank", body: "Past university papers. Filter by course, unit, exam session, college and marks." },
-  { target: "nav-tutor", title: "AI Tutor", body: "Chat with the AI to explain any topic — shaped for 2 marks or 16 marks." },
   { target: "profile-bar", title: "Your details", body: "Your college, department and semester. Switch the AI answer language between your languages here." },
-  { target: "search", title: "Search & Ask AI", body: "Type a topic to find it in your courses, or press Ask AI to get an explanation." },
+  { target: "search", title: "Search & Ask AI", body: "This is your AI Tutor. Type a topic to find it in your courses, or press Ask AI — the answer appears right here, shaped for 2 marks or 16 marks." },
   { target: "add-course", title: "Add course", body: "Add each subject from your syllabus. We'll ask which department it belongs to." },
   { target: "courses", title: "My courses & syllabus", body: "Once you add a course it shows up here with its units. Tick units as you revise them." },
   { target: "account", title: "Your account", body: "Edit your details, replay this tour or sign out from here." },
@@ -53,6 +55,8 @@ function Dashboard() {
   const [tourOpen, setTourOpen] = useState(false);
 
   const p = profile!;
+  const [language] = useAnswerLanguage(p.languages, p.id);
+  const chat = useTutorChat(language);
   const suggestions = suggestionsFor(p.department);
   const semesters = useMemo(
     () => [...new Set(courses.map((c) => c.semester).filter((s): s is number => s != null))].sort(),
@@ -83,7 +87,8 @@ function Dashboard() {
   }
 
   function ask(text: string) {
-    navigate({ to: "/tutor", search: { q: text } });
+    setQ("");
+    void chat.send(text);
   }
 
   const allOpen = visible.length > 0 && visible.every((c) => expanded[c.id]);
@@ -123,7 +128,7 @@ function Dashboard() {
               className="h-10 flex-1 bg-transparent text-sm outline-none"
               aria-label="Search courses, units or topics"
             />
-            <Button type="submit" size="sm" className="h-9 rounded-xl">
+            <Button type="submit" size="sm" className="h-9 rounded-xl" disabled={chat.busy}>
               <Sparkles /> Ask AI
             </Button>
           </form>
@@ -137,6 +142,13 @@ function Dashboard() {
             </Button>
           ))}
         </div>
+        <TutorAnswers
+          messages={chat.messages}
+          busy={chat.busy}
+          language={language}
+          onSend={chat.send}
+          onClear={chat.clear}
+        />
         {showCoursesSection(courses) && (
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4 text-xs text-muted-foreground">
             Filter:
@@ -181,6 +193,7 @@ function Dashboard() {
                 <CourseCard
                   key={c.id}
                   course={c}
+                  profileId={p.id}
                   expanded={Boolean(expanded[c.id])}
                   onToggle={() => setExpanded((e) => ({ ...e, [c.id]: !e[c.id] }))}
                 />
@@ -212,7 +225,7 @@ function Dashboard() {
             {[
               { icon: LayoutGrid, t: "Syllabus Dashboard", d: "Add your courses and track which units you've revised." },
               { icon: BookOpenCheck, t: "Question Bank", d: "Past university papers by unit, marks, session and college." },
-              { icon: MessagesSquare, t: "AI Tutor", d: `Explanations in ${p.languages.join(" or ")}, shaped for 2M or 16M answers.` },
+              { icon: MessagesSquare, t: "AI Tutor (search box)", d: `Ask in the search box on this page. Answers in ${p.languages.join(" or ")}, shaped for 2M or 16M.` },
             ].map(({ icon: Icon, t, d }) => (
               <li key={t} className="flex gap-3 rounded-xl bg-muted p-3">
                 <Icon className="mt-0.5 size-5 shrink-0 text-primary" />

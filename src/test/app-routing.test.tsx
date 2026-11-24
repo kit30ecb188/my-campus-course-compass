@@ -14,4 +14,10 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("has no separate AI Tutor page; the tutor lives only in the dashboard search box", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    expect(router.matchRoutes("/tutor").some((m) => m.routeId.endsWith("/tutor"))).toBe(false);
+  });
 });

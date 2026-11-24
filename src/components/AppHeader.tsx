@@ -1,6 +1,6 @@
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Compass, GraduationCap, Languages, LayoutGrid, LogOut, MapPin, MessagesSquare, BookOpen, UserRound } from "lucide-react";
+import { Building2, Compass, GraduationCap, Languages, LayoutGrid, LogOut, MapPin, BookOpen, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Profile } from "@/lib/profile";
 import { useAnswerLanguage } from "@/hooks/use-answer-language";
@@ -35,7 +35,9 @@ export function AppHeader({ profile }: { profile: Profile }) {
   const initials = (profile.nickname ?? profile.full_name ?? "?").slice(0, 1).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
+    <>
+    {/* Only the slim top bar stays pinned, and only on wider screens, so it never covers content on phones. */}
+    <header className="z-30 border-b border-border bg-background/90 backdrop-blur md:sticky md:top-0">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3">
         <Link to="/dashboard">
           <Brand />
@@ -48,9 +50,6 @@ export function AppHeader({ profile }: { profile: Profile }) {
             <Link to="/question-bank" data-tour="nav-qbank" className={navClass} activeProps={activeNav}>
               <BookOpen className="size-4" /> <span className="hidden sm:inline">Question Bank</span>
               <span className="hidden rounded-md bg-hot-soft px-1.5 py-0.5 text-[10px] font-bold text-hot md:inline">AU Hot</span>
-            </Link>
-            <Link to="/tutor" data-tour="nav-tutor" className={navClass} activeProps={activeNav}>
-              <MessagesSquare className="size-4" /> <span className="hidden sm:inline">AI Tutor</span>
             </Link>
           </nav>
           <DropdownMenu>
@@ -82,7 +81,8 @@ export function AppHeader({ profile }: { profile: Profile }) {
           </DropdownMenu>
         </div>
       </div>
-      <div className="border-t border-border/70 bg-primary-soft/40">
+    </header>
+      <div className="border-b border-border/70 bg-primary-soft/40">
         <div
           data-tour="profile-bar"
           className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-2 px-5 py-2 text-xs text-muted-foreground"
@@ -112,6 +112,6 @@ export function AppHeader({ profile }: { profile: Profile }) {
           </span>
         </div>
       </div>
-    </header>
+    </>
   );
 }

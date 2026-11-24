@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { profileQuery } from "@/lib/queries";
 import { COLLEGES, QUESTIONS, SAMPLE_COURSES, SESSIONS } from "@/lib/question-bank";
 import { Field, NativeSelect } from "@/components/Field";
@@ -39,7 +39,6 @@ const markTone: Record<number, string> = {
 
 function QuestionBank() {
   const { data: profile } = useSuspenseQuery(profileQuery);
-  const navigate = useNavigate();
   const [q, setQ] = useState("");
   const [course, setCourse] = useState("");
   const [unit, setUnit] = useState(0);
@@ -57,8 +56,6 @@ function QuestionBank() {
       (!q.trim() || x.text.toLowerCase().includes(q.toLowerCase())),
   );
 
-  const ask = (text: string) => navigate({ to: "/tutor", search: { q: text } });
-
   return (
     <div className="grid gap-8">
       <section className="animate-rise">
@@ -71,11 +68,8 @@ function QuestionBank() {
 
       <section className="surface p-5">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (q.trim()) ask(q.trim());
-          }}
-          className="flex items-center gap-2 rounded-2xl border border-input bg-card py-1.5 pl-4 pr-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring"
+          onSubmit={(e) => e.preventDefault()}
+          className="flex items-center gap-2 rounded-2xl border border-input bg-card py-1.5 pl-4 pr-4 shadow-sm focus-within:ring-2 focus-within:ring-ring"
         >
           <Search className="size-5 text-muted-foreground" />
           <input
@@ -85,18 +79,7 @@ function QuestionBank() {
             className="h-10 flex-1 bg-transparent text-sm outline-none"
             aria-label="Search past questions"
           />
-          <Button type="submit" size="sm" className="h-9 rounded-xl">
-            <Sparkles /> Ask AI
-          </Button>
         </form>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          Try asking:
-          {["Which questions repeat the most?", "Make a 2-mark revision sheet for Unit 1", "How do I score full marks in a 16M answer?"].map((s) => (
-            <Button key={s} variant="chip" size="chip" onClick={() => ask(s)}>
-              {s}
-            </Button>
-          ))}
-        </div>
         <div className="mt-5 grid gap-3 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Course" htmlFor="f-course">
             <NativeSelect id="f-course" value={course} onChange={(e) => setCourse(e.target.value)}>
@@ -161,14 +144,6 @@ function QuestionBank() {
                 </span>
               </div>
               <p className="flex-1">{x.text}</p>
-              <Button
-                variant="soft"
-                size="sm"
-                className="self-start"
-                onClick={() => ask(`Write a ${x.marks}-mark model answer for: ${x.text}`)}
-              >
-                <Sparkles /> AI model answer
-              </Button>
             </article>
           ))}
         </div>

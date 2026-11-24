@@ -102,6 +102,10 @@ export type Course = {
   units: Unit[];
 };
 
+/** How many units/topics one course can hold, and how long each line may be. */
+export const MAX_UNITS = 40;
+export const MAX_UNIT_LENGTH = 150;
+
 export const courseSchema = z.object({
   code: z.string().trim().min(2, "Enter the course code").max(20),
   title: z.string().trim().min(2, "Enter the course name").max(120),
@@ -111,7 +115,9 @@ export const courseSchema = z.object({
   semester: z.number().int().min(1).max(8),
   regulation: z.string().trim().max(40).optional(),
   university: z.string().trim().max(120).optional(),
-  units: z.array(z.string().trim().min(1).max(120)).max(12),
+  units: z
+    .array(z.string().trim().min(1).max(MAX_UNIT_LENGTH, `Keep each unit under ${MAX_UNIT_LENGTH} characters`))
+    .max(MAX_UNITS, `Add up to ${MAX_UNITS} units or topics`),
 });
 
 export type CourseInput = z.infer<typeof courseSchema>;
@@ -121,13 +127,42 @@ export function parseUnits(lines: string): string[] {
   return lines
     .split("\n")
     .map((l) => l.trim())
-    .filter(Boolean)
-    .slice(0, 12);
+    .filter(Boolean);
 }
 
 export function toUnit(line: string): Unit {
   const [title, marks] = line.split("|").map((p) => p.trim());
   return marks ? { title: title ?? line, marks, revised: false } : { title: title ?? line, revised: false };
+}
+
+/** Turns saved units back into editable "Title | Marks" lines. */
+export function unitsToText(units: readonly Unit[]): string {
+  return units.map((u) => (u.marks ? `${u.title} | ${u.marks}` : u.title)).join("\n");
+}
+
+const sameText = (a: string, b: string) =>
+  a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
+const sameCode = (a: string, b: string) => a.replace(/\s+/g, "").toUpperCase() === b.replace(/\s+/g, "").toUpperCase();
+
+/** Edited unit lines keep their "revised" tick when the unit title is unchanged. */
+export function mergeUnits(lines: readonly string[], previous: readonly Unit[]): Unit[] {
+  return lines.map((line) => {
+    const unit = toUnit(line);
+    return previous.some((p) => p.revised && sameText(p.title, unit.title)) ? { ...unit, revised: true } : unit;
+  });
+}
+
+/** A course counts as already added when its code or its name matches one the student has. */
+export function findDuplicateCourse<T extends Pick<Course, "id" | "code" | "title">>(
+  courses: readonly T[],
+  input: { code: string; title: string },
+  ignoreId?: string,
+): T | undefined {
+  const code = input.code.trim();
+  const title = input.title.trim();
+  return courses.find(
+    (c) => c.id !== ignoreId && ((code !== "" && sameCode(c.code, code)) || (title !== "" && sameText(c.title, title))),
+  );
 }
 
 /** New users with no courses don't see the "My courses & syllabus" section. */

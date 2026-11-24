@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { courseSchema, profileSchema, semestersForYear, showCoursesSection } from "@/lib/profile";
+import {
+  courseSchema,
+  findDuplicateCourse,
+  mergeUnits,
+  parseUnits,
+  profileSchema,
+  semestersForYear,
+  showCoursesSection,
+} from "@/lib/profile";
 
 const valid = {
   full_name: "Priya Raman",
@@ -50,5 +58,50 @@ describe("course rules", () => {
   it("hides My courses & syllabus for a new user with no courses", () => {
     expect(showCoursesSection([])).toBe(false);
     expect(showCoursesSection([{ id: "1" }])).toBe(true);
+  });
+});
+
+describe("course units, editing and duplicates", () => {
+  const base = { code: "CS3401", title: "Algorithms", department: "CSE", semester: 4 };
+
+  it("keeps every unit line instead of cutting off after 12", () => {
+    const text = Array.from({ length: 20 }, (_, i) => `Unit ${i + 1}`).join("\n");
+    expect(parseUnits(text)).toHaveLength(20);
+  });
+
+  it("accepts up to 40 units and topics", () => {
+    const units = Array.from({ length: 40 }, (_, i) => `Topic ${i + 1}`);
+    expect(courseSchema.safeParse({ ...base, units }).success).toBe(true);
+    expect(courseSchema.safeParse({ ...base, units: [...units, "Topic 41"] }).success).toBe(false);
+  });
+
+  const saved = [{ id: "a", code: "CS3401", title: "Algorithms" }];
+
+  it("warns when the same course code is added again", () => {
+    expect(findDuplicateCourse(saved, { code: "cs 3401", title: "Design of Algorithms" })?.id).toBe("a");
+  });
+
+  it("warns when the same course name is added again", () => {
+    expect(findDuplicateCourse(saved, { code: "CS9999", title: "  algorithms " })?.id).toBe("a");
+  });
+
+  it("allows a different course", () => {
+    expect(findDuplicateCourse(saved, { code: "MA3354", title: "Discrete Mathematics" })).toBeUndefined();
+  });
+
+  it("does not flag a course as a duplicate of itself while editing", () => {
+    expect(findDuplicateCourse(saved, { code: "CS3401", title: "Algorithms" }, "a")).toBeUndefined();
+  });
+
+  it("keeps revised ticks on units whose title is unchanged after editing", () => {
+    const previous = [
+      { title: "Sorting", revised: true },
+      { title: "Graphs", revised: false },
+    ];
+    expect(mergeUnits(["Sorting | 20 Marks", "Graphs", "Dynamic programming"], previous)).toEqual([
+      { title: "Sorting", marks: "20 Marks", revised: true },
+      { title: "Graphs", revised: false },
+      { title: "Dynamic programming", revised: false },
+    ]);
   });
 });

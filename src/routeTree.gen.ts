@@ -17,7 +17,6 @@ import { Route as AuthenticatedAppRouteRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedAppDashboardRouteImport } from './routes/_authenticated/_app/dashboard'
 import { Route as AuthenticatedAppQuestionBankRouteImport } from './routes/_authenticated/_app/question-bank'
-import { Route as AuthenticatedAppTutorRouteImport } from './routes/_authenticated/_app/tutor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,11 +58,6 @@ const AuthenticatedAppQuestionBankRoute =
     path: '/question-bank',
     getParentRoute: () => AuthenticatedAppRouteRoute,
   } as any)
-const AuthenticatedAppTutorRoute = AuthenticatedAppTutorRouteImport.update({
-  id: '/tutor',
-  path: '/tutor',
-  getParentRoute: () => AuthenticatedAppRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -72,7 +66,6 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/question-bank': typeof AuthenticatedAppQuestionBankRoute
-  '/tutor': typeof AuthenticatedAppTutorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -81,7 +74,6 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/dashboard': typeof AuthenticatedAppDashboardRoute
   '/question-bank': typeof AuthenticatedAppQuestionBankRoute
-  '/tutor': typeof AuthenticatedAppTutorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,7 +85,6 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/_app/dashboard': typeof AuthenticatedAppDashboardRoute
   '/_authenticated/_app/question-bank': typeof AuthenticatedAppQuestionBankRoute
-  '/_authenticated/_app/tutor': typeof AuthenticatedAppTutorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -104,7 +95,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/dashboard'
     | '/question-bank'
-    | '/tutor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -113,7 +103,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/dashboard'
     | '/question-bank'
-    | '/tutor'
   id:
     | '__root__'
     | '/'
@@ -124,7 +113,6 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/_app/dashboard'
     | '/_authenticated/_app/question-bank'
-    | '/_authenticated/_app/tutor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -192,26 +180,17 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAppQuestionBankRouteImport
       parentRoute: typeof AuthenticatedAppRouteRoute
     }
-    '/_authenticated/_app/tutor': {
-      id: '/_authenticated/_app/tutor'
-      path: '/tutor'
-      fullPath: '/tutor'
-      preLoaderRoute: typeof AuthenticatedAppTutorRouteImport
-      parentRoute: typeof AuthenticatedAppRouteRoute
-    }
   }
 }
 
 interface AuthenticatedAppRouteRouteChildren {
   AuthenticatedAppDashboardRoute: typeof AuthenticatedAppDashboardRoute
   AuthenticatedAppQuestionBankRoute: typeof AuthenticatedAppQuestionBankRoute
-  AuthenticatedAppTutorRoute: typeof AuthenticatedAppTutorRoute
 }
 
 const AuthenticatedAppRouteRouteChildren: AuthenticatedAppRouteRouteChildren = {
   AuthenticatedAppDashboardRoute: AuthenticatedAppDashboardRoute,
   AuthenticatedAppQuestionBankRoute: AuthenticatedAppQuestionBankRoute,
-  AuthenticatedAppTutorRoute: AuthenticatedAppTutorRoute,
 }
 
 const AuthenticatedAppRouteRouteWithChildren =
