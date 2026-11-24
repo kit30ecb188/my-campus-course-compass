@@ -7,3 +7,6 @@
 - [x] Add course asks which department the course belongs to
 - [x] First visit: "what is this" welcome + guided tour showing where everything is
 - [x] Rebuild dashboard, question bank, AI tutor
+- [x] Keep each account's details and courses separate; show which account is signed in; warn when a new account is being set up
+- [x] Course "Videos" button: pick a topic, get YouTube lectures
+- [x] Course "Notes" button: pick units/topics, get detailed notes as a downloadable PDF

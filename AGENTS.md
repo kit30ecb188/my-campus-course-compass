@@ -34,3 +34,5 @@ use the editor.
 - Profile and course validation rules live in `src/lib/profile.ts` (zod) and are covered by `src/test/profile-rules.test.ts`; change rules there, not in forms.
 - Browser data reads use `queryOptions` in `src/lib/queries.ts` with the browser client (RLS scopes rows to the user); AI calls go through `src/lib/tutor.functions.ts` behind `requireSupabaseAuth`.
 - Guided-tour targets are `data-tour="..."` attributes; keep them when restyling header or dashboard elements.
+- The root auth listener clears the whole query cache whenever the signed-in account changes, and the app layout re-fetches any cached profile whose id differs from the session user, so one account's data never shows for another.
+- Notes PDFs are built in the browser with jsPDF (built-in Latin fonts only), so AI notes from `src/lib/study.functions.ts` are plain English text in a fixed JSON shape (`notesSchema` in `src/lib/study.ts`).

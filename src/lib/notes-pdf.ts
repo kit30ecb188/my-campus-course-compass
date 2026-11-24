@@ -93,9 +93,12 @@ export async function buildNotesPdf(opts: {
       doc.addPage();
       y = M;
     }
-    ensure(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    const titleLines = (doc.splitTextToSize(clean(`Unit ${idx + 1}: ${n.unit}`), maxW) as string[]).length;
+    ensure(20 + titleLines * 7);
     doc.setFillColor(232, 240, 253);
-    doc.roundedRect(M - 3, y - 6, maxW + 6, 12, 2, 2, "F");
+    doc.roundedRect(M - 3, y - 6, maxW + 6, 5 + titleLines * 6.75, 2, 2, "F");
     para(`Unit ${idx + 1}: ${n.unit}`, 15, BLUE, "bold");
     y += 4;
     para(n.overview, 10.5, MUTED);
