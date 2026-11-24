@@ -2,16 +2,20 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BookOpenCheck, Check, ChevronDown, Sparkles, Trash2 } from "lucide-react";
+import { BookOpenCheck, Check, ChevronDown, FileText, PlayCircle, Sparkles, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { revisionProgress, type Course, type Unit } from "@/lib/profile";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { NotesDialog, VideosDialog } from "@/components/StudyDialogs";
 import { cn } from "@/lib/utils";
 
 export function CourseCard({ course, expanded, onToggle }: { course: Course; expanded: boolean; onToggle: () => void }) {
   const queryClient = useQueryClient();
   const [units, setUnits] = useState<Unit[]>(course.units);
   const progress = revisionProgress(units);
+  const [videosOpen, setVideosOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
 
   async function saveUnits(next: Unit[]) {
     setUnits(next);
@@ -53,6 +57,16 @@ export function CourseCard({ course, expanded, onToggle }: { course: Course; exp
         </div>
         <ChevronDown className={cn("size-5 shrink-0 text-muted-foreground transition", expanded && "rotate-180")} />
       </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3">
+        <Button variant="soft" size="sm" onClick={() => setVideosOpen(true)}>
+          <PlayCircle /> Videos
+        </Button>
+        <Button variant="soft" size="sm" onClick={() => setNotesOpen(true)}>
+          <FileText /> Notes (PDF)
+        </Button>
+      </div>
+      <VideosDialog course={course} open={videosOpen} onOpenChange={setVideosOpen} />
+      <NotesDialog course={course} open={notesOpen} onOpenChange={setNotesOpen} />
       {expanded && (
         <div className="grid gap-2 border-t border-border bg-muted/40 p-4">
           {units.length === 0 && <p className="px-2 text-sm text-muted-foreground">No units added for this course.</p>}

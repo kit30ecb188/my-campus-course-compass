@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Compass, GraduationCap, Languages, LayoutGrid, LogOut, MapPin, MessagesSquare, BookOpen, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ const activeNav = { className: `${navClass} bg-card text-primary shadow-sm` };
 
 export function AppHeader({ profile }: { profile: Profile }) {
   const navigate = useNavigate();
+  const { user } = useRouteContext({ from: "/_authenticated" });
   const queryClient = useQueryClient();
   const [language, setLanguage] = useAnswerLanguage(profile.languages);
 
@@ -64,6 +65,7 @@ export function AppHeader({ profile }: { profile: Profile }) {
               <DropdownMenuLabel>
                 <p className="font-semibold">{profile.full_name}</p>
                 <p className="text-xs font-normal text-muted-foreground">@{profile.nickname}</p>
+                {user.email && <p className="mt-1 truncate text-xs font-normal text-muted-foreground">Signed in as {user.email}</p>}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => navigate({ to: "/onboarding" })}>

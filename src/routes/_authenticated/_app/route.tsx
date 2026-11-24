@@ -5,7 +5,11 @@ import { AppHeader } from "@/components/AppHeader";
 
 export const Route = createFileRoute("/_authenticated/_app")({
   beforeLoad: async ({ context }) => {
-    const profile = await context.queryClient.ensureQueryData(profileQuery);
+    let profile = await context.queryClient.ensureQueryData(profileQuery);
+    // Never trust a cached profile that belongs to someone else (e.g. after switching accounts).
+    if (!profile || profile.id !== context.user.id) {
+      profile = await context.queryClient.fetchQuery({ ...profileQuery, staleTime: 0 });
+    }
     if (!profile?.onboarded) throw redirect({ to: "/onboarding" });
   },
   component: AppLayout,

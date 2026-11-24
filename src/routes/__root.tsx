@@ -11,6 +11,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { accountChanged } from "@/lib/study";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -129,10 +130,26 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    // Remember whose data is cached so a different account never sees it.
+    let currentUserId: string | null | undefined;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null;
+      if (event === "INITIAL_SESSION") {
+        currentUserId = nextUserId;
+        return;
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      router.invalidate();
-      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (accountChanged(currentUserId, nextUserId)) {
+        currentUserId = nextUserId;
+        queryClient.cancelQueries();
+        queryClient.clear();
+        router.invalidate();
+        return;
+      }
+      if (event === "USER_UPDATED") {
+        router.invalidate();
+        queryClient.invalidateQueries();
+      }
     });
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);

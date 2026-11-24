@@ -31,7 +31,10 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(profileQuery),
+  loader: async ({ context }) => {
+    const cached = await context.queryClient.ensureQueryData(profileQuery);
+    if (!cached || cached.id !== context.user.id) await context.queryClient.fetchQuery({ ...profileQuery, staleTime: 0 });
+  },
   component: Onboarding,
 });
 
@@ -40,6 +43,14 @@ function Onboarding() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const editing = Boolean(profile?.onboarded);
+  const { user } = Route.useRouteContext();
+
+  async function switchAccount() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", search: { mode: "signin" }, replace: true });
+  }
 
   const [form, setForm] = useState({
     full_name: profile?.full_name ?? "",
@@ -108,6 +119,19 @@ function Onboarding() {
         <p className="mt-1 text-sm text-muted-foreground">
           We use this to show your syllabus, past papers and AI answers for your college and semester.
         </p>
+        {!editing && (
+          <div className="mt-4 rounded-xl border border-highlight bg-highlight/20 p-4 text-sm">
+            <p>
+              You're setting up a <b>new account</b> for <b>{user.email}</b>.
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Already filled in your details before? You probably used a different email or Google account.
+            </p>
+            <Button type="button" variant="link" className="h-auto px-0 py-1" onClick={switchAccount}>
+              Sign in with my other account
+            </Button>
+          </div>
+        )}
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           <Field label="Your name" htmlFor="full_name" error={errors["full_name"]}>
